@@ -66,7 +66,7 @@ go get golang.org/x/net/http2
   Start wpr in replay mode.
   ```
   cd path/to/web_page_replay_go
-  go run src/wpr.go replay --http_port=8080 --https_port=8081 /tmp/archive.wprgo
+  go run src/wpr.go replay --http_port=8080 --https_port=8081 --log_file=requests.log archive.wprgo
   ```
 
 * Terminal 2:
