@@ -5,6 +5,8 @@
 package webpagereplay
 
 import (
+  "reflect"
+	"encoding/json" // Encoding and Decoding Package
 	"bytes"
 	"fmt"
 	"io"
@@ -19,10 +21,18 @@ import (
 
 const errStatus = http.StatusInternalServerError
 
+type Req struct {
+	Ip     string
+	Url    string
+	Header string
+	Body   string
+}
+
 func makeLogger(req *http.Request) func(msg string, args ...interface{}) {
 	prefix := fmt.Sprintf("ServeHTTP(%s): ", req.URL)
 	return func(msg string, args ...interface{}) {
 		log.Print(prefix + fmt.Sprintf(msg, args...))
+		reflect.TypeOf(req.Body)
 	}
 }
 
@@ -63,17 +73,60 @@ func updateDates(h http.Header, now time.Time) {
 
 // NewReplayingProxy constructs an HTTP proxy that replays responses from an archive.
 // The proxy is listening for requests on a port that uses the given scheme (e.g., http, https).
-func NewReplayingProxy(a *Archive, scheme string, transformers []ResponseTransformer) http.Handler {
-	return &replayingProxy{a, scheme, transformers}
+func NewReplayingProxy(a *Archive, scheme string, transformers []ResponseTransformer, logfile string) http.Handler {
+	return &replayingProxy{a, scheme, transformers, logfile}
 }
 
 type replayingProxy struct {
 	a            *Archive
 	scheme       string
 	transformers []ResponseTransformer
+	logfile string
 }
 
 func (proxy *replayingProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	// Writing requests to Files
+
+	f, err := os.OpenFile(proxy.logfile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	headerJson, err := json.Marshal(req.Header)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	// headerJson := string(headerJson)
+	body, _ := ioutil.ReadAll(req.Body)
+	bodystr := string(body)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	requestobj := Req{
+		Ip: string(req.RemoteAddr),
+		Url: req.URL.String(),
+		Header: string(headerJson),
+		Body: string(bodystr),
+	}
+
+	json_bytes, err := json.Marshal(requestobj)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	 _, err = f.WriteString(string(json_bytes)+"\n")
+
+	f.Close()
+
+
+
+
+	// Handling requests
+
 	if req.URL.Path == "/web-page-replay-generate-200" {
 		w.WriteHeader(200)
 		return
