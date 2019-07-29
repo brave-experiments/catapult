@@ -26,6 +26,7 @@ type Req struct {
 	Url    string
 	Header string
 	Body   string
+    Method string
 }
 
 func makeLogger(req *http.Request) func(msg string, args ...interface{}) {
@@ -85,6 +86,7 @@ type replayingProxy struct {
 }
 
 func (proxy *replayingProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+    fixupRequestURL(req, proxy.scheme)
 
 	// Writing requests to Files
 
@@ -110,6 +112,7 @@ func (proxy *replayingProxy) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		Url: req.URL.String(),
 		Header: string(headerJson),
 		Body: string(bodystr),
+        Method: string(req.Method),
 	}
 
 	json_bytes, err := json.Marshal(requestobj)
@@ -121,9 +124,6 @@ func (proxy *replayingProxy) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	 _, err = f.WriteString(string(json_bytes)+"\n")
 
 	f.Close()
-
-
-
 
 	// Handling requests
 
@@ -142,7 +142,6 @@ func (proxy *replayingProxy) ServeHTTP(w http.ResponseWriter, req *http.Request)
 		proxy.a.StartNewReplaySession()
 		return
 	}
-	fixupRequestURL(req, proxy.scheme)
 	logf := makeLogger(req)
 
 	// Lookup the response in the archive.
