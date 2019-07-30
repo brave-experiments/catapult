@@ -79,6 +79,7 @@ type ReplayCommand struct {
 
 	// Custom flags for replay.
 	rulesFile                            string
+	logFile                              string
 	serveResponseInChronologicalSequence bool
 }
 
@@ -194,6 +195,12 @@ func (r *ReplayCommand) Flags() []cli.Flag {
 			Value:       "",
 			Usage:       "File containing rules to apply to responses during replay",
 			Destination: &r.rulesFile,
+		},
+		cli.StringFlag{
+			Name:        "log_file",
+			Value:       "requests.log",
+			Usage:       "File path to log requests",
+			Destination: &r.logFile,
 		},
 		cli.BoolFlag{
 			Name: "serve_response_in_chronological_sequence",
@@ -417,8 +424,8 @@ func (r *ReplayCommand) Run(c *cli.Context) {
 		log.Printf("Loaded replay rules from %s", r.rulesFile)
 	}
 
-	httpHandler := webpagereplay.NewReplayingProxy(archive, "http", r.common.transformers)
-	httpsHandler := webpagereplay.NewReplayingProxy(archive, "https", r.common.transformers)
+	httpHandler := webpagereplay.NewReplayingProxy(archive, "http", r.common.transformers, r.logFile)
+	httpsHandler := webpagereplay.NewReplayingProxy(archive, "https", r.common.transformers, r.logFile)
 	tlsconfig, err := webpagereplay.ReplayTLSConfig(r.common.root_cert, archive)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating TLSConfig: %v", err)
