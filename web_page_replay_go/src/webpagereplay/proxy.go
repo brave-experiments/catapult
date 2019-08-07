@@ -26,6 +26,7 @@ type Req struct {
 	Url    string
 	Header string
 	Body   string
+    IsNew  bool
 }
 
 func makeLogger(req *http.Request) func(msg string, args ...interface{}) {
@@ -104,25 +105,6 @@ func (proxy *replayingProxy) ServeHTTP(w http.ResponseWriter, req *http.Request)
       log.Fatal(err)
   }
 
-	requestobj := Req{
-		Ip: string(req.RemoteAddr),
-		Url: req.URL.String(),
-		Header: string(headerJson),
-		Body: string(bodystr),
-	}
-
-	json_bytes, err := json.Marshal(requestobj)
-	if err != nil {
-        fmt.Println(err)
-        return
-    }
-
-	 _, err = f.WriteString(string(json_bytes)+"\n")
-
-  f.Close()
-
-
-
 
 	// Handling requests
 
@@ -145,7 +127,33 @@ func (proxy *replayingProxy) ServeHTTP(w http.ResponseWriter, req *http.Request)
 	logf := makeLogger(req)
 
 	// Lookup the response in the archive.
-	_, storedResp, err := proxy.a.FindRequest(req)
+
+
+    _, storedResp, err := proxy.a.FindRequest(req)
+
+    isNewHeader := false
+    if err != nil {
+        isNewHeader = true
+    }
+
+    requestobj := Req{
+		Ip: string(req.RemoteAddr),
+		Url: req.URL.String(),
+		Header: string(headerJson),
+		Body: string(bodystr),
+        IsNew: isNewHeader,//strconv.FormatBool(isNewHeader),
+	}
+
+	json_bytes, err := json.Marshal(requestobj)
+	if err != nil {
+        fmt.Println(err)
+        return
+    }
+
+	 _, err = f.WriteString(string(json_bytes)+"\n")
+
+    f.Close()
+
 	if err != nil {
 		logf("couldn't find matching request: %v", err)
 		w.WriteHeader(http.StatusNotFound)
